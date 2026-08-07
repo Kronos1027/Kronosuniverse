@@ -68,6 +68,10 @@ add_executable(test_ship tests/test_ship.cpp src/procedural/noise.c)
 target_link_libraries(test_ship pthread)
 add_test(NAME ship_test COMMAND test_ship)
 
+add_executable(test_inventory tests/test_inventory.cpp)
+target_link_libraries(test_inventory pthread)
+add_test(NAME inventory_test COMMAND test_inventory)
+
 add_executable(test_world tests/test_world.cpp src/procedural/noise.c)
 target_link_libraries(test_world pthread)
 add_test(NAME world_test COMMAND test_world)
