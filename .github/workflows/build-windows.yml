@@ -42,11 +42,16 @@ jobs:
           mkdir release
           cp build/kronouniverse.exe release/
           $mingw = "C:\msys64\mingw64\bin"
-          cp "$mingw\SDL2.dll" release/ 2>$null
-          cp "$mingw\libgcc_s_seh-1.dll" release/
-          cp "$mingw\libstdc++-6.dll" release/
-          cp "$mingw\libwinpthread-1.dll" release/
-          cp "$mingw\sqlite3.dll" release/ 2>$null
+          # Copy DLLs that exist (ignore errors for missing ones)
+          foreach ($dll in @("SDL2.dll","libgcc_s_seh-1.dll","libstdc++-6.dll","libwinpthread-1.dll","sqlite3.dll","libbz2-1.dll","zlib1.dll")) {
+            $src = Join-Path $mingw $dll
+            if (Test-Path $src) {
+              Copy-Item $src release/
+              Write-Host "Copied $dll"
+            } else {
+              Write-Host "WARNING: $dll not found"
+            }
+          }
           Compress-Archive -Path release/* -DestinationPath KronoUniverse-windows-x64.zip
 
       - name: Create Release
