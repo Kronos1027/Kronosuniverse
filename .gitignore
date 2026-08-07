@@ -1,0 +1,9 @@
+build/
+*.o
+*.so
+*.a
+*.exe
+kronouniverse
+test_*
+.clangd
+.cache/
