@@ -20,11 +20,13 @@
 #include <queue>
 #include <cassert>
 #include <cstring>
+#include <memory>
+#include <functional>
 
 namespace krono {
 
 using Entity = uint64_t;
-constexpr Entity INVALID_ENTITY = 0;
+constexpr Entity INVALID_ENTITY = UINT64_MAX;
 
 namespace detail {
     inline uint32_t entity_id(Entity e) { return static_cast<uint32_t>(e & 0xFFFFFFFF); }
@@ -152,7 +154,7 @@ public:
 
     template<typename T>
     void emplace(Entity e, T&& component) {
-        get_or_create_set<T>().insert(e, std::forward<T>(component));
+        get_or_create_set<T>()->insert(e, std::forward<T>(component));
     }
 
     template<typename T>
@@ -179,13 +181,12 @@ public:
     }
 
     // Iterate over entities that have ALL the specified component types
-    template<typename... Components>
-    void each(std::function<void(Entity, Components&...)> fn) {
+    template<typename... Components, typename Fn>
+    void each(Fn fn) {
         // Find the smallest set to iterate
         auto* smallest = find_smallest_set<Components...>();
         if (!smallest) return;
-        // Iterate and check all components
-        for (Entity e : smallest) {
+        for (Entity e : *smallest) {
             if ((has<Components>(e) && ...)) {
                 fn(e, *get<Components>(e)...);
             }
@@ -237,7 +238,6 @@ private:
         auto* set = find_set<First>();
         return set ? &set->entities() : nullptr;
     }
-
     inline static uint64_t next_type_id = 0;
     std::unordered_map<uint64_t, std::unique_ptr<SparseSetBase>> component_sets_;
     std::vector<uint32_t> entity_versions_;
