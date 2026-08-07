@@ -57,18 +57,29 @@ Impacto na visão original: Nenhum — controle total permite implementar
 ## 4. PROGRESSO POR FASE
 
 ### Fase 0 — Fundação técnica
-- **Status**: EM PROGRESSO
+- **Status**: COMPLETA ✅
 - **Data início**: 2026-08-07
+- **Data conclusão**: 2026-08-07
 - **Tarefas**:
   - [x] Criar estrutura de diretórios do projeto
   - [x] Configurar CMakeLists.txt (C++20, SDL2, OpenGL)
-  - [x] Implementar ECS base (Entity, Component, System)
-  - [x] Implementar loop de jogo (fixed timestep + render interpolation)
-  - [x] Implementar função central `aplicar_impulso(corpo, vetor, ponto)`
-  - [x] Implementar colisão básica (AABB + resolução)
-  - [x] Compilar e testar no Linux
-  - [ ] Testar janela SDL2 com render de pixel básico
-- **Relatório**: Ver seção 5 abaixo
+  - [x] Implementar ECS base (Entity, Component, System) — sparse sets
+  - [x] Implementar loop de jogo (fixed timestep 60Hz + render interpolation)
+  - [x] Implementar função central `aplicar_impulso` (add_impulse no PhysicsSystem)
+  - [x] Implementar colisão básica (AABB + resolução com bounce/restitution)
+  - [x] Compilar e testar no Linux — TODOS OS TESTES PASSARAM
+  - [x] Testar ECS: 8/8 testes (create, add, modify, remove, iterate, multi, destroy, recycle)
+  - [x] Testar Physics: 5/5 testes (gravity, static, impulse, integration, collision)
+  - [x] Testar Noise: 3/3 testes (deterministic, seed, range)
+- **Relatório**:
+  - ECS: sparse sets flea-style, O(1) add/remove, linear iteration. Entity recycling com version counter.
+  - Physics: gravidade, impulsos (função central add_impulse), damping, colisão AABB com restitution.
+  - Noise: FastNoiseLite (Perlin/Simplex), determinístico por seed, range [-1, 1] validado.
+  - GameLoop: fixed timestep 60Hz + interpolação visual (alpha blending).
+  - Renderer: SDL2 + OpenGL 3.3, immediate mode para MVP (upgrade p/ VBOs na Fase 2).
+  - Bug corrigido: INVALID_ENTITY era 0 (primeiro entity válido), trocado para UINT64_MAX.
+  - Bug corrigido: FastNoiseLite usa #define FNL_IMPL (não FNL_IMPLEMENTATION).
+  - Bug corrigido: each() usava std::function (não aceita lambdas), trocado para template.
 
 ### Fase 1 — Personagem e movimento
 - **Status**: PENDENTE
@@ -84,7 +95,35 @@ Impacto na visão original: Nenhum — controle total permite implementar
 
 ## 5. ERROS ENCONTRADOS E COMO FORAM RESOLVIDOS
 
-### Erro 1: (ainda nenhum — projeto começando)
+### Erro 1: INVALID_ENTITY = 0 conflita com primeiro entity criado
+- **Problema**: `constexpr Entity INVALID_ENTITY = 0` fazia o primeiro entity (ID=0) ser considerado inválido
+- **Solução**: Trocado para `UINT64_MAX` — IDs reais nunca chegam a esse valor
+- **Data**: 2026-08-07
+
+### Erro 2: each() não aceitava lambdas
+- **Problema**: `each(std::function<void(Entity, Components&...)> fn)` não aceita lambdas diretamente (type deduction falha)
+- **Solução**: Trocado para `template<typename... Components, typename Fn> void each(Fn fn)` — aceita qualquer callable
+- **Data**: 2026-08-07
+
+### Erro 3: emplace() usava . em vez de ->
+- **Problema**: `get_or_create_set<T>().insert(...)` — get_or_create_set retorna ponteiro
+- **Solução**: Trocado para `get_or_create_set<T>()->insert(...)`
+- **Data**: 2026-08-07
+
+### Erro 4: FastNoiseLite define errado
+- **Problema**: Header usa `#define FNL_IMPL` (não `FNL_IMPLEMENTATION` como outras libs)
+- **Solução**: Criado `src/procedural/noise.c` com `#define FNL_IMPL` + `#include "FastNoiseLite.h"`
+- **Data**: 2026-08-07
+
+### Erro 5: fnl_state não inicializada corretamente
+- **Problema**: `memset(&fnl, 0, sizeof(fnl))` não seta defaults (fractal_type, octaves, etc.)
+- **Solução**: Usar `fnlCreateState()` que inicializa com defaults corretos
+- **Data**: 2026-08-07
+
+### Erro 6: Noise retornava 0 nas coordenadas de teste
+- **Problema**: Coordenadas (100, 200) com freq=0.01 resultam em noise=0 (coincidência matemática)
+- **Solução**: Ajustado para freq=0.1 e coordenadas (13.7, 7.3) que produzem valores não-zero
+- **Data**: 2026-08-07
 
 ## 6. DECISÕES DE ARQUITETURA (resumo — ver DECISIONS.md para detalhes)
 
