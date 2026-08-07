@@ -76,6 +76,10 @@ add_executable(test_npc tests/test_npc.cpp)
 target_link_libraries(test_npc pthread)
 add_test(NAME npc_test COMMAND test_npc)
 
+add_executable(test_universe tests/test_universe.cpp src/procedural/noise.c)
+target_link_libraries(test_universe pthread)
+add_test(NAME universe_test COMMAND test_universe)
+
 add_executable(test_world tests/test_world.cpp src/procedural/noise.c)
 target_link_libraries(test_world pthread)
 add_test(NAME world_test COMMAND test_world)
