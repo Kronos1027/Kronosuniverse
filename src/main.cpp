@@ -27,6 +27,10 @@
 #include <thread>
 #include <algorithm>
 
+// SDL_main support — SDL2 on Windows redefines main as SDL_main
+// We need to include SDL.h and let SDL handle the entry point
+#include <SDL2/SDL.h>
+
 using namespace krono;
 
 // ---- Config ----
