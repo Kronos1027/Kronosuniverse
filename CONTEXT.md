@@ -110,7 +110,28 @@ Impacto na visão original: Nenhum — controle total permite implementar
   - Bug corrigido: fall_damage_threshold não existia em CharacterController → hardcoded 400
 
 ### Fase 2 — Terreno e geração de planeta
-- **Status**: PENDENTE
+- **Status**: COMPLETA ✅
+- **Data início**: 2026-08-08
+- **Data conclusão**: 2026-08-08
+- **Tarefas**:
+  - [x] Criar world.hpp: World class com chunks, blocks, biomes
+  - [x] Implementar geração procedural (Perlin multi-camada: terreno, cavernas, minérios, árvores)
+  - [x] Implementar 14 tipos de bloco (AIR, DIRT, GRASS, STONE, SAND, WOOD, LEAVES, METAL, ICE, LAVA, WATER, BEDROCK, CRYSTAL, ANCIENT)
+  - [x] Implementar propriedades de bloco (HP, load_capacity, self_weight, friction, flags)
+  - [x] Implementar biomas (OCEAN, BEACH, PLAINS, FOREST, DESERT, TUNDRA, MOUNTAIN, VOLCANIC, CRYSTAL_CAVE)
+  - [x] Implementar place/destroy/damage de blocos
+  - [x] Implementar streaming de chunks (load/unload por distância)
+  - [x] Implementar integridade estrutural (BFS from anchors, unsupported = cracking)
+  - [x] Implementar explosões com falloff + recalculo estrutural
+  - [x] Testar: 8/8 testes passaram (deterministic, chunks, blocks, biomes, structural, explosion, streaming, properties)
+- **Relatório**:
+  - Chunk: 64×128 = 8192 blocos, gerado proceduralmente sob demanda
+  - Topo = AIR, fundo = BEDROCK (indestrutível, âncora estrutural)
+  - Geração: terreno Perlin (5 octaves FBM), cavernas (ridged noise), minérios (cellular noise)
+  - Árvores em FOREST/PLAINS, gelo em TUNDRA, lava em VOLCANIC
+  - Estrutural: BFS de bedrock → blocos sem caminho = rachadura (HP reduzido)
+  - Explosão: falloff = dano_base * (1 - dist/raio), bedrock imune
+  - Streaming: chunks fora do raio são descarregados (delta saving TODO Fase 6)
 
 ### Fase 3 — Naves
 - **Status**: PENDENTE

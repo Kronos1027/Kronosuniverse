@@ -63,3 +63,7 @@ add_test(NAME noise_test COMMAND test_noise)
 add_executable(test_movement tests/test_movement.cpp src/procedural/noise.c)
 target_link_libraries(test_movement pthread)
 add_test(NAME movement_test COMMAND test_movement)
+
+add_executable(test_world tests/test_world.cpp src/procedural/noise.c)
+target_link_libraries(test_world pthread)
+add_test(NAME world_test COMMAND test_world)
