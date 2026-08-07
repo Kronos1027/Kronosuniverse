@@ -22,37 +22,31 @@ jobs:
           update: true
           install: >-
             mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-SDL2
-            mingw-w64-x86_64-SDL2_image
-            mingw-w64-x86_64-SDL2_mixer
-            mingw-w64-x86_64-sqlite3
             mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-SDL2
+            mingw-w64-x86_64-sqlite3
+            make
 
       - name: Build
         shell: msys2 {0}
         run: |
-          mkdir build && cd build
-          cmake -G "MinGW Makefiles" \
-            -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc \
-            -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++ \
-            -DCMAKE_MAKE_PROGRAM=mingw32-make \
-            ..
-          mingw32-make kronouniverse -j4
+          cd $GITHUB_WORKSPACE
+          mkdir build
+          cd build
+          cmake -G "MSYS Makefiles" ..
+          make kronouniverse -j4
 
       - name: Package
         shell: pwsh
         run: |
           mkdir release
           cp build/kronouniverse.exe release/
-          # Copy SDL2 DLLs
-          cp C:/msys64/mingw64/bin/SDL2.dll release/
-          cp C:/msys64/mingw64/bin/SDL2_image.dll release/ 2>$null
-          cp C:/msys64/mingw64/bin/SDL2_mixer.dll release/ 2>$null
-          cp C:/msys64/mingw64/bin/libgcc_s_seh-1.dll release/
-          cp C:/msys64/mingw64/bin/libstdc++-6.dll release/
-          cp C:/msys64/mingw64/bin/libwinpthread-1.dll release/
-          cp C:/msys64/mingw64/bin/sqlite3.dll release/ 2>$null
-          # Create zip
+          $mingw = "C:\msys64\mingw64\bin"
+          cp "$mingw\SDL2.dll" release/ 2>$null
+          cp "$mingw\libgcc_s_seh-1.dll" release/
+          cp "$mingw\libstdc++-6.dll" release/
+          cp "$mingw\libwinpthread-1.dll" release/
+          cp "$mingw\sqlite3.dll" release/ 2>$null
           Compress-Archive -Path release/* -DestinationPath KronoUniverse-windows-x64.zip
 
       - name: Create Release
@@ -64,32 +58,32 @@ jobs:
           body: |
             ## KronoUniverse — Windows x64
             
-            ### How to play
-            1. Download and extract the zip
-            2. Run kronouniverse.exe
-            3. Controls:
-               - A/D or arrows = move
-               - W/Space = jump
-               - Shift = run
-               - S = crouch
-               - Mouse wheel = zoom
-               - Left click = mine block
-               - Right click = place block
-               - F1 = debug info
-               - F2 = change block type
-               - ESC = quit
+            ### Como jogar
+            1. Baixe e extraia o zip
+            2. Execute kronouniverse.exe
+            3. Controles:
+               - A/D ou setas = mover
+               - W/Space = pular
+               - Shift = correr
+               - S = agachar
+               - Scroll do mouse = zoom
+               - Botão esquerdo = cavar bloco
+               - Botão direito = colocar bloco
+               - F1 = info de debug
+               - F2 = trocar tipo de bloco
+               - ESC = sair
             
             ### Features
-            - Procedurally generated world (Perlin noise)
-            - 14 block types with different properties
-            - Mining and building
-            - Physics-based character movement
-            - Different surface frictions (ice, mud, stone)
-            - Fall damage
-            - Encumbrance system
-            - Caves, ores, trees
+            - Mundo procedural (Perlin noise multi-camada)
+            - 14 tipos de bloco com propriedades diferentes
+            - Mining e building
+            - Física de personagem (gravidade, salto, atrito, dano de queda)
+            - Biomas (plains, forest, desert, tundra, volcanic)
+            - Cavernas, minérios, árvores
+            - Câmera com zoom
+            - Bedrock indestrutível
             
-            Made by Darlan (NATSKY)
+            Feito por Darlan (NATSKY)
           draft: false
           prerelease: false
         env:
