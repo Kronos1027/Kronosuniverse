@@ -8,9 +8,18 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -DDEBUG -Wall -Wextra")
 
+# Find SDL2 but DON'T use SDL2main (we handle main() ourselves)
 find_package(SDL2 REQUIRED)
 find_package(OpenGL REQUIRED)
 find_package(SQLite3 REQUIRED)
+
+# Extract just SDL2 (not SDL2main) from SDL2_LIBRARIES
+set(SDL2_LIBS "")
+foreach(lib ${SDL2_LIBRARIES})
+    if(NOT lib MATCHES "SDL2main")
+        list(APPEND SDL2_LIBS ${lib})
+    endif()
+endforeach()
 
 include_directories(
     ${CMAKE_SOURCE_DIR}/include
@@ -27,7 +36,7 @@ add_executable(kronouniverse ${SOURCES})
 target_compile_definitions(kronouniverse PRIVATE SDL_MAIN_HANDLED)
 
 target_link_libraries(kronouniverse
-    ${SDL2_LIBRARIES}
+    ${SDL2_LIBS}
     ${OPENGL_LIBRARIES}
     ${SQLite3_LIBRARIES}
 )
@@ -35,49 +44,37 @@ target_link_libraries(kronouniverse
 enable_testing()
 
 add_executable(test_ecs tests/test_ecs.cpp)
-target_link_libraries(test_ecs)
 add_test(NAME ecs_test COMMAND test_ecs)
 
 add_executable(test_physics tests/test_physics.cpp)
-target_link_libraries(test_physics)
 add_test(NAME physics_test COMMAND test_physics)
 
 add_executable(test_noise tests/test_noise.cpp src/procedural/noise.c)
-target_link_libraries(test_noise)
 add_test(NAME noise_test COMMAND test_noise)
 
 add_executable(test_movement tests/test_movement.cpp src/procedural/noise.c)
-target_link_libraries(test_movement)
 add_test(NAME movement_test COMMAND test_movement)
 
 add_executable(test_ship tests/test_ship.cpp src/procedural/noise.c)
-target_link_libraries(test_ship)
 add_test(NAME ship_test COMMAND test_ship)
 
 add_executable(test_inventory tests/test_inventory.cpp)
-target_link_libraries(test_inventory)
 add_test(NAME inventory_test COMMAND test_inventory)
 
 add_executable(test_npc tests/test_npc.cpp)
-target_link_libraries(test_npc)
 add_test(NAME npc_test COMMAND test_npc)
 
 add_executable(test_universe tests/test_universe.cpp src/procedural/noise.c)
-target_link_libraries(test_universe)
 add_test(NAME universe_test COMMAND test_universe)
 
 add_executable(test_powers tests/test_powers.cpp)
-target_link_libraries(test_powers)
 add_test(NAME powers_test COMMAND test_powers)
 
 add_executable(test_war_god tests/test_war_god.cpp src/procedural/noise.c)
-target_link_libraries(test_war_god)
 add_test(NAME war_god_test COMMAND test_war_god)
 
 add_executable(test_world tests/test_world.cpp src/procedural/noise.c)
-target_link_libraries(test_world)
 add_test(NAME world_test COMMAND test_world)
 
 add_executable(test_structural tests/test_structural.cpp src/procedural/noise.c)
-target_link_libraries(test_structural)
 add_test(NAME structural_test COMMAND test_structural)
