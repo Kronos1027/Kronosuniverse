@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(KronoUniverse CXX)
+project(KronoUniverse C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -27,11 +27,12 @@ include_directories(
     ${SQLite3_INCLUDE_DIRS}
 )
 
-# Source files
+# Source files — .cpp globbed, .c added explicitly (glob doesn't pick up .c by default)
 file(GLOB_RECURSE SOURCES
     "src/*.cpp"
     "src/*.cc"
 )
+list(APPEND SOURCES src/procedural/noise.c)
 
 # Main executable
 add_executable(kronouniverse ${SOURCES})
@@ -46,13 +47,14 @@ target_link_libraries(kronouniverse
     pthread
 )
 
-# Tests
+# ---- Tests ----
 enable_testing()
-add_executable(test_ecs tests/test_ecs.cpp src/engine/ecs.cpp)
+
+add_executable(test_ecs tests/test_ecs.cpp)
 target_link_libraries(test_ecs pthread)
 add_test(NAME ecs_test COMMAND test_ecs)
 
-add_executable(test_physics tests/test_physics.cpp src/physics/physics.cpp)
+add_executable(test_physics tests/test_physics.cpp)
 target_link_libraries(test_physics pthread)
 add_test(NAME physics_test COMMAND test_physics)
 
@@ -91,3 +93,7 @@ add_test(NAME war_god_test COMMAND test_war_god)
 add_executable(test_world tests/test_world.cpp src/procedural/noise.c)
 target_link_libraries(test_world pthread)
 add_test(NAME world_test COMMAND test_world)
+
+add_executable(test_structural tests/test_structural.cpp src/procedural/noise.c)
+target_link_libraries(test_structural pthread)
+add_test(NAME structural_test COMMAND test_structural)
