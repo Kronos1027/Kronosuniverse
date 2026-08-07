@@ -82,7 +82,32 @@ Impacto na visão original: Nenhum — controle total permite implementar
   - Bug corrigido: each() usava std::function (não aceita lambdas), trocado para template.
 
 ### Fase 1 — Personagem e movimento
-- **Status**: PENDENTE
+- **Status**: COMPLETA ✅
+- **Data início**: 2026-08-07
+- **Data conclusão**: 2026-08-08
+- **Tarefas**:
+  - [x] Criar character_components.hpp (CharacterController, Species, InventoryWeight, Surface, etc.)
+  - [x] Implementar InputSystem (teclado → comandos de movimento, edge-triggered jump)
+  - [x] Implementar MovementSystem (andar, correr, pular, nadar, voar, escalar, agachar)
+  - [x] Implementar fórmula de salto: v = sqrt(2 * g * h) — altura consistente entre gravidades
+  - [x] Implementar dano de queda: dano = max(0, (v_impacto - limiar) * mult_espécie)
+  - [x] Implementar atrito por terreno (ice=0.05, mud=0.95, metal=0.6, stone=0.7)
+  - [x] Implementar encumbrance (peso do inventário reduz speed 50% e jump 70%)
+  - [x] Implementar state machine (IDLE, WALK, RUN, JUMP, FALL, SWIM, FLY, CLIMB, CROUCH)
+  - [x] Implementar coyote time + jump buffering (game feel)
+  - [x] Implementar AnimationState (sprite layers: body, arms, legs, head, equipment)
+  - [x] Criar demo jogável (main.cpp) com plataformas de diferentes superfícies
+  - [x] Testar: 8/8 testes passaram (jump formula, fall damage, encumbrance, friction, walk/run, jump, states, animation)
+- **Relatório**:
+  - Jump: v=280 (Earth g=490) e v=114 (Moon g=81) → ambos alcançam h=80px ✓
+  - Fall damage: Human=20 dano, Dwarf=10 dano (50% menos), safe fall=0 ✓
+  - Encumbrance: vazio=100% speed, cheio=50% speed + 30% jump, over=25% speed ✓
+  - Surface friction: Ice=0.05, Mud=0.95, Metal=0.6, Stone=0.7 ✓
+  - Walk: 200px/s, Run: 350px/s ✓
+  - States: IDLE→WALK→RUN→CROUCH transições corretas ✓
+  - Animation: WALK + facing right/left ✓
+  - Bug corrigido: emplace<T>(e) sem valor não compila → usar emplace<T>(e, T{})
+  - Bug corrigido: fall_damage_threshold não existia em CharacterController → hardcoded 400
 
 ### Fase 2 — Terreno e geração de planeta
 - **Status**: PENDENTE

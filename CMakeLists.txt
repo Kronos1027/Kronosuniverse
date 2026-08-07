@@ -56,6 +56,10 @@ add_executable(test_physics tests/test_physics.cpp src/physics/physics.cpp)
 target_link_libraries(test_physics pthread)
 add_test(NAME physics_test COMMAND test_physics)
 
-add_executable(test_noise tests/test_noise.cpp src/procedural/noise.cpp)
+add_executable(test_noise tests/test_noise.cpp src/procedural/noise.c)
 target_link_libraries(test_noise pthread)
 add_test(NAME noise_test COMMAND test_noise)
+
+add_executable(test_movement tests/test_movement.cpp src/procedural/noise.c)
+target_link_libraries(test_movement pthread)
+add_test(NAME movement_test COMMAND test_movement)
