@@ -200,3 +200,21 @@ Impacto na visão original: Nenhum — controle total permite implementar
 - **Nome**: Darlan
 - **Email**: 84149831+Kronos1027@users.noreply.github.com
 - **Nunca** fazer commits com identidade diferente desta
+
+### Fase 8+9 — Guerra, Crime, Política + Endgame do Deus
+- **Status**: COMPLETA ✅
+- **Data**: 2026-08-08
+- 8/8 testes: crime (bounty), war (declare/simulate/peace), politics (gift/trade/war/peace/annex), god (challenge/combat/ascension)
+- Total de testes: 75 (8+5+3+8+8+8+8+8+8+8+8)
+
+### RESUMO FINAL — TODAS AS 10 FASES COMPLETAS
+Fase 0: ECS + física + gameloop + render + noise (16 testes)
+Fase 1: Personagem/movimento (8 testes)
+Fase 2: Terreno/planeta (8 testes)
+Fase 3: Naves (8 testes)
+Fase 4: Inventário/itens (8 testes)
+Fase 5: NPCs/diálogo (8 testes)
+Fase 6: Universo/Camadas 0-1 (8 testes)
+Fase 7: Poderes/stats sociais (8 testes)
+Fase 8+9: Guerra/crime/política + Deus (8 testes)
+Fase 10: (próximo — polimento + build final)

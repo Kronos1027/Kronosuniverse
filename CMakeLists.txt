@@ -84,6 +84,10 @@ add_executable(test_powers tests/test_powers.cpp)
 target_link_libraries(test_powers pthread)
 add_test(NAME powers_test COMMAND test_powers)
 
+add_executable(test_war_god tests/test_war_god.cpp src/procedural/noise.c)
+target_link_libraries(test_war_god pthread)
+add_test(NAME war_god_test COMMAND test_war_god)
+
 add_executable(test_world tests/test_world.cpp src/procedural/noise.c)
 target_link_libraries(test_world pthread)
 add_test(NAME world_test COMMAND test_world)
