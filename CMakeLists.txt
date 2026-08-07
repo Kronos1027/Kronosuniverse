@@ -5,49 +5,34 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Compilation flags
 set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
-set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -DDEBUG -fsanitize=address -Wall -Wextra")
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -DDEBUG -Wall -Wextra")
 
-# Find packages
+# Find packages (SDL2_image and SDL2_mixer are optional)
 find_package(SDL2 REQUIRED)
-find_package(SDL2_image REQUIRED)
-find_package(SDL2_mixer REQUIRED)
 find_package(OpenGL REQUIRED)
 find_package(SQLite3 REQUIRED)
 
-# Include directories
 include_directories(
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/third_party
     ${SDL2_INCLUDE_DIRS}
-    ${SDL2_IMAGE_INCLUDE_DIRS}
-    ${SDL2_MIXER_INCLUDE_DIRS}
     ${OPENGL_INCLUDE_DIR}
     ${SQLite3_INCLUDE_DIRS}
 )
 
-# Source files — .cpp globbed, .c added explicitly (glob doesn't pick up .c by default)
-file(GLOB_RECURSE SOURCES
-    "src/*.cpp"
-    "src/*.cc"
-)
+file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.cc")
 list(APPEND SOURCES src/procedural/noise.c)
 
-# Main executable
 add_executable(kronouniverse ${SOURCES})
 
-# Link libraries
 target_link_libraries(kronouniverse
     ${SDL2_LIBRARIES}
-    ${SDL2_IMAGE_LIBRARIES}
-    ${SDL2_MIXER_LIBRARIES}
     ${OPENGL_LIBRARIES}
     ${SQLite3_LIBRARIES}
     pthread
 )
 
-# ---- Tests ----
 enable_testing()
 
 add_executable(test_ecs tests/test_ecs.cpp)
