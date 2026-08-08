@@ -122,3 +122,6 @@ add_test(NAME wildlife_drops_test COMMAND test_wildlife_drops)
 
 add_executable(test_survival tests/test_survival.cpp)
 add_test(NAME survival_test COMMAND test_survival)
+
+add_executable(test_liquid tests/test_liquid.cpp src/procedural/noise.c)
+add_test(NAME liquid_test COMMAND test_liquid)
