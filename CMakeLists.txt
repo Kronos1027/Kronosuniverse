@@ -125,3 +125,6 @@ add_test(NAME survival_test COMMAND test_survival)
 
 add_executable(test_liquid tests/test_liquid.cpp src/procedural/noise.c)
 add_test(NAME liquid_test COMMAND test_liquid)
+
+add_executable(test_power tests/test_power.cpp src/procedural/noise.c)
+add_test(NAME power_test COMMAND test_power)
