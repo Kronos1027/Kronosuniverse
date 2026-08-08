@@ -119,3 +119,6 @@ add_test(NAME collision_jump_test COMMAND test_collision_jump)
 
 add_executable(test_wildlife_drops tests/test_wildlife_drops.cpp src/procedural/noise.c)
 add_test(NAME wildlife_drops_test COMMAND test_wildlife_drops)
+
+add_executable(test_survival tests/test_survival.cpp)
+add_test(NAME survival_test COMMAND test_survival)

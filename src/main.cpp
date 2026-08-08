@@ -26,6 +26,7 @@
 #include "game/ui_system.hpp"
 #include "game/wildlife_system.hpp"
 #include "game/item_drops.hpp"
+#include "game/survival_system.hpp"
 #include <iostream>
 #include <cmath>
 #include <algorithm>
@@ -251,6 +252,7 @@ static Entity create_player(Registry& reg, float x, float y) {
     reg.emplace<FallDamageTracker>(p, FallDamageTracker{});
     reg.emplace<TagPlayer>(p, TagPlayer{});
     reg.emplace<StatusContainer>(p, StatusContainer{});
+    reg.emplace<SurvivalStats>(p, SurvivalStats{});
     Species human; human.name="Human"; human.base_mass=70.0f;
     reg.emplace<Species>(p, std::move(human));
     InventoryWeight inv; inv.max_weight=100.0f;
@@ -1139,6 +1141,23 @@ int main() {
                 CombatSystem::check_projectile_hits(reg);
                 projectile_world_collision(reg, world);
 
+                // Survival stats update
+                bool is_moving = ctrl->input_left || ctrl->input_right;
+                bool is_running = ctrl->input_run && is_moving;
+                // Determine ambient temperature from biome
+                Biome cur_bio = world.get_biome((int)(pos->x/16), 0);
+                float ambient_temp = 20.0f;
+                switch (cur_bio.type) {
+                    case BiomeType::TUNDRA: ambient_temp = -10.0f; break;
+                    case BiomeType::VOLCANIC: ambient_temp = 45.0f; break;
+                    case BiomeType::DESERT: ambient_temp = 35.0f; break;
+                    case BiomeType::OCEAN: ambient_temp = 15.0f; break;
+                    default: ambient_temp = 20.0f; break;
+                }
+                // Detect if in dark cave (underground)
+                bool in_cave = pos->y > 64 * 16 && lighting.ambient_light < 0.4f;
+                SurvivalSystem::update(reg, FIXED_DT, ambient_temp, in_cave, is_moving, is_running);
+
                 // Update item drops and collect
                 auto collected = ItemDropSystem::update(reg, player, FIXED_DT, world);
                 for (auto& [item_id, count] : collected) {
@@ -1586,6 +1605,75 @@ int main() {
                 char lvl_text[32];
                 snprintf(lvl_text, sizeof(lvl_text), "LVL %d", player_level);
                 BitmapFont::draw(renderer, 10, 40, lvl_text, 1.0f, 0.9f, 0.3f, 1.0f);
+
+                // Survival stats bars (right side of HP)
+                auto* survival = reg.get<SurvivalStats>(player);
+                if (survival) {
+                    // Hunger (orange)
+                    renderer.draw_rect(220, 10, 100, 5, 0.1f, 0.1f, 0.12f, 0.8f);
+                    renderer.draw_rect(222, 11, 96 * (survival->hunger / 100.0f), 3, 1.0f, 0.6f, 0.1f);
+                    BitmapFont::draw(renderer, 220, 18, "HUNGER", 0.8f, 0.5f, 0.1f, 0.9f);
+
+                    // Thirst (blue)
+                    renderer.draw_rect(220, 28, 100, 5, 0.1f, 0.1f, 0.12f, 0.8f);
+                    renderer.draw_rect(222, 29, 96 * (survival->thirst / 100.0f), 3, 0.2f, 0.5f, 1.0f);
+                    BitmapFont::draw(renderer, 220, 36, "THIRST", 0.3f, 0.5f, 0.9f, 0.9f);
+
+                    // Stamina (green)
+                    renderer.draw_rect(330, 10, 100, 5, 0.1f, 0.1f, 0.12f, 0.8f);
+                    renderer.draw_rect(332, 11, 96 * (survival->stamina / survival->max_stamina), 3, 0.2f, 0.9f, 0.2f);
+                    BitmapFont::draw(renderer, 330, 18, "STAMINA", 0.3f, 0.8f, 0.2f, 0.9f);
+
+                    // Sleep (purple)
+                    renderer.draw_rect(330, 28, 100, 5, 0.1f, 0.1f, 0.12f, 0.8f);
+                    renderer.draw_rect(332, 29, 96 * (survival->sleep / 100.0f), 3, 0.6f, 0.3f, 0.9f);
+                    BitmapFont::draw(renderer, 330, 36, "SLEEP", 0.6f, 0.3f, 0.8f, 0.9f);
+
+                    // Temperature
+                    char temp_buf[32];
+                    snprintf(temp_buf, sizeof(temp_buf), "TEMP %.0fC", survival->temperature);
+                    float tr = 0.5f, tg = 0.5f, tb = 0.5f;
+                    if (survival->is_hypothermic) { tr = 0.3f; tg = 0.5f; tb = 1.0f; }
+                    else if (survival->is_hyperthermic) { tr = 1.0f; tg = 0.3f; tb = 0.1f; }
+                    else { tr = 0.5f; tg = 0.9f; tb = 0.5f; }
+                    BitmapFont::draw(renderer, 440, 10, temp_buf, tr, tg, tb, 1.0f);
+
+                    // Sanity
+                    char san_buf[32];
+                    snprintf(san_buf, sizeof(san_buf), "SAN %.0f", survival->sanity);
+                    BitmapFont::draw(renderer, 440, 25, san_buf, 0.7f, 0.4f, 0.9f, 1.0f);
+
+                    // Status warnings
+                    int warn_y = 50;
+                    if (survival->is_starving) {
+                        BitmapFont::draw(renderer, 440, warn_y, "STARVING!", 1.0f, 0.3f, 0.1f, 1.0f);
+                        warn_y += 12;
+                    }
+                    if (survival->is_dehydrated) {
+                        BitmapFont::draw(renderer, 440, warn_y, "DEHYDRATED!", 0.3f, 0.5f, 1.0f, 1.0f);
+                        warn_y += 12;
+                    }
+                    if (survival->is_exhausted) {
+                        BitmapFont::draw(renderer, 440, warn_y, "EXHAUSTED!", 0.9f, 0.7f, 0.2f, 1.0f);
+                        warn_y += 12;
+                    }
+                    if (survival->is_hypothermic) {
+                        BitmapFont::draw(renderer, 440, warn_y, "HYPOTHERMIA!", 0.3f, 0.6f, 1.0f, 1.0f);
+                        warn_y += 12;
+                    }
+                    if (survival->is_hyperthermic) {
+                        BitmapFont::draw(renderer, 440, warn_y, "HEAT STROKE!", 1.0f, 0.3f, 0.1f, 1.0f);
+                        warn_y += 12;
+                    }
+                    if (survival->is_insane) {
+                        BitmapFont::draw(renderer, 440, warn_y, "INSANE!", 0.7f, 0.3f, 0.9f, 1.0f);
+                        warn_y += 12;
+                    }
+                    if (survival->is_sleep_deprived) {
+                        BitmapFont::draw(renderer, 440, warn_y, "SLEEP DEPRIVED!", 0.6f, 0.3f, 0.8f, 1.0f);
+                        warn_y += 12;
+                    }
+                }
 
                 // Weapon name
                 const char* weapon_names[] = {"SWORD", "BOW", "FIRE STAFF", "ICE STAFF", "POISON DAGGER"};
