@@ -27,7 +27,7 @@ jobs:
             mingw-w64-x86_64-sqlite3
             make
 
-      - name: Build
+      - name: Build and Package
         shell: msys2 {0}
         run: |
           cd $GITHUB_WORKSPACE
@@ -35,36 +35,42 @@ jobs:
           cd build
           cmake -G "MSYS Makefiles" ..
           make kronouniverse -j4
-
-      - name: Package
-        shell: pwsh
-        run: |
+          
+          # Copy executable and ALL required DLLs
+          cd $GITHUB_WORKSPACE
           mkdir release
           cp build/kronouniverse.exe release/
-          $mingw = "C:\msys64\mingw64\bin"
-          # Copy DLLs that exist (ignore errors for missing ones)
-          foreach ($dll in @("SDL2.dll","libgcc_s_seh-1.dll","libstdc++-6.dll","libwinpthread-1.dll","sqlite3.dll","libbz2-1.dll","zlib1.dll")) {
-            $src = Join-Path $mingw $dll
-            if (Test-Path $src) {
-              Copy-Item $src release/
-              Write-Host "Copied $dll"
-            } else {
-              Write-Host "WARNING: $dll not found"
-            }
-          }
-          Compress-Archive -Path release/* -DestinationPath KronoUniverse-windows-x64.zip
+          
+          # Find all DLLs the executable needs
+          MINGW_BIN=/mingw64/bin
+          
+          # Copy required DLLs (use -f to overwrite, ignore errors for non-existent)
+          for dll in SDL2.dll libgcc_s_seh-1.dll libstdc++-6.dll libwinpthread-1.dll sqlite3.dll libbz2-1.dll zlib1.dll libpng16-16.dll; do
+            if [ -f "$MINGW_BIN/$dll" ]; then
+              cp "$MINGW_BIN/$dll" release/
+              echo "Copied: $dll"
+            fi
+          done
+          
+          # List what we have
+          echo "=== Release contents ==="
+          ls -la release/
+          
+          # Create zip
+          cd $GITHUB_WORKSPACE
+          tar -czf KronoUniverse-windows-x64.tar.gz -C release .
 
       - name: Create Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: KronoUniverse-windows-x64.zip
+          files: KronoUniverse-windows-x64.tar.gz
           name: KronoUniverse ${{ github.ref_name }}
           body: |
             ## KronoUniverse — Windows x64
             
             ### Como jogar
-            1. Baixe e extraia o zip
+            1. Baixe e extraia o .tar.gz
             2. Execute kronouniverse.exe
             3. Controles:
                - A/D ou setas = mover
@@ -85,8 +91,6 @@ jobs:
             - Física de personagem (gravidade, salto, atrito, dano de queda)
             - Biomas (plains, forest, desert, tundra, volcanic)
             - Cavernas, minérios, árvores
-            - Câmera com zoom
-            - Bedrock indestrutível
             
             Feito por Darlan (NATSKY)
           draft: false
