@@ -10,16 +10,30 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -DDEBUG -Wall -Wextra")
 
 # Find SDL2 but DON'T use SDL2main (we handle main() ourselves)
 find_package(SDL2 REQUIRED)
-find_package(OpenGL REQUIRED)
+
+# OpenGL: try find_package, fall back to system libs
+find_package(OpenGL QUIET)
+if(NOT OpenGL_FOUND AND NOT OPENGL_LIBRARIES)
+    message(STATUS "OpenGL find_package failed — using system libs directly")
+    set(OPENGL_LIBRARIES "GL")
+    set(OPENGL_INCLUDE_DIR "")
+endif()
+
 find_package(SQLite3 REQUIRED)
 
-# Extract just SDL2 (not SDL2main) from SDL2_LIBRARIES
-set(SDL2_LIBS "")
-foreach(lib ${SDL2_LIBRARIES})
-    if(NOT lib MATCHES "SDL2main")
-        list(APPEND SDL2_LIBS ${lib})
-    endif()
-endforeach()
+# Override SDL2_LIBRARIES to use shared lib (avoid pulling in static deps)
+if(EXISTS "/usr/lib/x86_64-linux-gnu/libSDL2-2.0.so.0")
+    set(SDL2_LIBS "SDL2-2.0")
+    message(STATUS "Using shared SDL2 from /usr/lib")
+else()
+    # Extract just SDL2 (not SDL2main) from SDL2_LIBRARIES
+    set(SDL2_LIBS "")
+    foreach(lib ${SDL2_LIBRARIES})
+        if(NOT lib MATCHES "SDL2main")
+            list(APPEND SDL2_LIBS ${lib})
+        endif()
+    endforeach()
+endif()
 
 include_directories(
     ${CMAKE_SOURCE_DIR}/include
@@ -78,3 +92,20 @@ add_test(NAME world_test COMMAND test_world)
 
 add_executable(test_structural tests/test_structural.cpp src/procedural/noise.c)
 add_test(NAME structural_test COMMAND test_structural)
+
+# v0.3 tests
+add_executable(test_combat tests/test_combat.cpp)
+add_test(NAME combat_test COMMAND test_combat)
+
+add_executable(test_mob_ai tests/test_mob_ai.cpp)
+add_test(NAME mob_ai_test COMMAND test_mob_ai)
+
+add_executable(test_weather_lighting tests/test_weather_lighting.cpp src/procedural/noise.c)
+add_test(NAME weather_lighting_test COMMAND test_weather_lighting)
+
+add_executable(test_crafting_v2 tests/test_crafting_v2.cpp)
+add_test(NAME crafting_v2_test COMMAND test_crafting_v2)
+
+add_executable(test_save_system tests/test_save_system.cpp)
+target_link_libraries(test_save_system ${SQLite3_LIBRARIES})
+add_test(NAME save_system_test COMMAND test_save_system)

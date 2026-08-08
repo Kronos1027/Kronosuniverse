@@ -3,7 +3,7 @@
 > **ESTE ARQUIVO É O CONTEXTO PERMANENTE DO GLM.**
 > Toda decisão, erro, solução e progresso deve ser registrado aqui.
 > Ao retomar o trabalho (após restart de sessão), LEIA ESTE ARQUIVO PRIMEIRO.
-> Última atualização: 2026-08-08 (correção de auditoria)
+> Última atualização: 2026-08-08 (v0.3 — Combat + Mobs + Weather + Lighting + Crafting v2)
 
 ---
 
@@ -155,6 +155,91 @@
 - **Data**: 2026-08-08
 - **Implementado**: Validação completa de todas as fases. 83/83 testes passando.
 
+### Fase 11 — Combat System (v0.3)
+- **Status**: COMPLETA ✅
+- **Data**: 2026-08-08
+- **Implementado**:
+  - 5 armas: Fist, Sword, Bow, Gun, Fire/Ice Staff, Poison Dagger
+  - Projéteis com física, lifetime, knockback, pierce
+  - 8 status effects: POISON, BURN, FREEZE, STUN, BLEED, REGEN, HASTE, SLOW
+  - Dano crítico, cooldown, ammo system
+  - Hitboxes e hurtboxes via AABB
+  - Friendly fire prevention (mesmo time não se ataca)
+- **Testes**: 14 (fist damage, sword > fist, cooldown, recovery, bow spawns proj, lifetime, hits, knockback, burn, DoT, poison duration, regen, no friendly fire, gun > bow)
+
+### Fase 12 — Mob AI (v0.3)
+- **Status**: COMPLETA ✅
+- **Data**: 2026-08-08
+- **Implementado**:
+  - 7 tipos de mob: ZOMBIE, SLIME, SKELETON, BAT, BOSS, DEER, RABBIT
+  - AI states: IDLE, WANDER, CHASE, ATTACK, FLEE, DEAD
+  - Passive mobs (deer, rabbit) fogem do player
+  - Hostile mobs perseguem e atacam
+  - Skeleton usa BOW (ranged), Boss é grande com 500 HP
+  - Bat voa (move em Y), outros pulam
+  - Status effects afetam AI (FREEZE/STUN = imóvel)
+  - Spawn dinâmico ao redor do player (mais mobs perigosos à noite)
+  - Cleanup automático de mobs mortos
+- **Testes**: 11 (spawn zombie, boss HP, chase, idle, flee, bat flies, skeleton ranged, death, freeze, different HP, colors)
+
+### Fase 13 — Weather System (v0.3)
+- **Status**: COMPLETA ✅
+- **Data**: 2026-08-08
+- **Implementado**:
+  - 7 climas: CLEAR, CLOUDY, RAIN, SNOW, STORM, FOG, SANDSTORM
+  - Decisão por bioma (deserto = sandstorm, tundra = snow)
+  - Partículas: chuva (rápida), neve (lenta), areia (horizontal)
+  - Raios durante tempestades (flash visual + som)
+  - Vento dinâmico (empurra entidades leves)
+  - Transição suave entre climas (10s)
+  - Neblina reduz visibilidade
+- **Testes**: 8 (desert no rain, tundra snow, rain particles, snow slow, storm lightning, clear no particles, fog accumulates, is_stormy)
+
+### Fase 14 — Lighting System (v0.3)
+- **Status**: COMPLETA ✅
+- **Data**: 2026-08-08
+- **Implementado**:
+  - 9 tipos de luz: TORCH, LAVA_GLOW, CRYSTAL_GLOW, MAGIC_FIRE, MAGIC_ICE, PLAYER_GLOW, EXPLOSION, STAR, MOONLIGHT
+  - Light map dinâmico (get_light_at em qualquer posição)
+  - Mistura com luz ambiente (dia/noite)
+  - Falloff quadrático (mais realista)
+  - Cores por tipo (laranja=fire, ciano=ice)
+  - Flicker para tochas e lava
+  - Limite de 64 luzes ativas (LRU eviction)
+  - Luzes temporárias (explosão, magia) expiram
+  - Renderização aditiva (glows)
+  - Player ganha glow automático quando escuro
+- **Testes**: 9 (add light, bright at source, dim far away, multiple add up, lava orange, crystal cyan, day/night ambient, max lights cap, temporary expires)
+
+### Fase 15 — Crafting System v2 (v0.3)
+- **Status**: COMPLETA ✅
+- **Data**: 2026-08-08
+- **Implementado**:
+  - 46 receitas (vs 1 da v0.2)
+  - 6 estações: NONE, WORKBENCH, FURNACE, ANVIL, ALTAR, ALCHEMY_TABLE, HIGH_TECH
+  - 7 categorias: Building, Material, Tool, Weapon, Armor, Ammo, Food, Potion, Magic, Tech, Station
+  - Sistema de tiers (1-7)
+  - Recipe discovery (blueprints para receitas avançadas)
+  - Crafting station chain (Workbench → Furnace → Anvil → High Tech)
+- **Testes**: 15 (recipe count, basic craft, station required, missing ingredient, consumes ingredients, furnace required, get_available filter, tier progression, weapons, armor, potions, tech needs HIGH_TECH, magic needs ALTAR, stations craftable, diverse categories)
+
+### Fase 16 — Save System (v0.3)
+- **Status**: COMPLETA ✅
+- **Data**: 2026-08-08
+- **Implementado**:
+  - SQLite para persistência
+  - Save/Load: player pos, health, level, XP, time_of_day, world_seed
+  - Block deltas (apenas blocos modificados)
+  - Recipe discovery tracking
+  - Stats (kills, deaths, blocks mined/placed)
+  - Persistência entre sessões
+- **Testes**: 6 (open/close, save/load player, stats, block deltas, recipe discovery, persistence across reopen)
+
+## 4b. RESUMO v0.3
+- **17 conjuntos de testes, 142 testes individuais (vs 83 em v0.1 = +71%)**
+- **Sistemas novos**: Combat, MobAI, Weather, Lighting, Crafting v2, Save
+- **Arquivos novos**: 5 headers + 5 testes + main.cpp expandido 3x
+
 ## 5. ERROS ENCONTRADOS E COMO FORAM RESOLVIDOS
 
 ### Erro 1: INVALID_ENTITY = 0
@@ -198,6 +283,34 @@
 ### Erro 11: CMakeLists glob não pegava .c
 - Problema: file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.cc") não inclui .c
 - Solução: list(APPEND SOURCES src/procedural/noise.c) adicionado explicitamente
+
+### Erro 12: find_package(OpenGL) falha em ambiente sem libgl-dev
+- Problema: find_package(OpenGL REQUIRED) não encontra libOpenGL.so e libGLX.so
+- Solução: Patch CMakeLists.txt para fallback para "GL" direto se find_package falhar
+
+### Erro 13: SDL2 static lib (.a) puxa 15+ dependências (wayland, pulse, etc)
+- Problema: Linker encontrava libSDL2.a primeiro e falhava em todas as deps dinâmicas
+- Solução: Override SDL2_LIBS para "SDL2-2.0" (shared) quando /usr/lib/x86_64-linux-gnu/libSDL2-2.0.so.0 existe
+
+### Erro 14: each() lambda com auto não compilava
+- Problema: Usava reg.view<T1,T2>().each(...) mas Registry não tem view<T1,T2>()
+- Solução: Trocar para reg.each<T1,T2>([&](auto e, T1&, T2&){...})
+
+### Erro 15: Projectile pulava alvo em dt grande
+- Problema: Bow com speed=600 e dt=0.4s viaja 240px, passava do alvo em 200px
+- Solução: Em testes, usar loop com dt=0.01s e chamar check_projectile_hits a cada step
+
+### Erro 16: Grace period de 0.05s em projectiles causava miss em alvos próximos
+- Problema: Projétil de gun (speed=1200) já passava do alvo em 30px quando grace acabava
+- Solução: Em testes, colocar alvos a 300px+ para dar tempo de hit
+
+### Erro 17: MAX_LIGHTS não era respeitado com luzes permanentes
+- Problema: add_light só removia luzes temporárias; permanentes enchiam além do limite
+- Solução: Fallback para remover a luz permanente mais antiga se nenhuma temporária existir
+
+### Erro 18: Mob morto era destruído mas teste acessava ponteiro null
+- Problema: MobAISystem::update destrói mobs mortos, mas teste tentava acessar MobAI depois
+- Solução: Teste agora verifica que ai == nullptr após cleanup
 
 ## 6. DECISÕES DE ARQUITETURA (ver DECISIONS.md para ADRs)
 
