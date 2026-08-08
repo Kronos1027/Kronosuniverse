@@ -1,3 +1,4 @@
+#define _USE_MATH_DEFINES
 // KronoUniverse — Main (v0.2 — Áudio + Sprites + Partículas + Iluminação + Day/Night)
 //
 // NOVIDADES vs v0.1:
@@ -21,6 +22,9 @@
 #include <iostream>
 #include <cmath>
 #include <algorithm>
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 // SDL_mixer might not be available — guard with #ifdef
 #ifdef __has_include
