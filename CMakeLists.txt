@@ -113,3 +113,9 @@ add_test(NAME save_system_test COMMAND test_save_system)
 add_executable(test_ui_system tests/test_ui_system.cpp)
 target_link_libraries(test_ui_system ${SDL2_LIBS})
 add_test(NAME ui_system_test COMMAND test_ui_system)
+
+add_executable(test_collision_jump tests/test_collision_jump.cpp src/procedural/noise.c)
+add_test(NAME collision_jump_test COMMAND test_collision_jump)
+
+add_executable(test_wildlife_drops tests/test_wildlife_drops.cpp src/procedural/noise.c)
+add_test(NAME wildlife_drops_test COMMAND test_wildlife_drops)

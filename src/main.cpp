@@ -24,6 +24,8 @@
 #include "game/crafting_system.hpp"
 #include "game/save_system.hpp"
 #include "game/ui_system.hpp"
+#include "game/wildlife_system.hpp"
+#include "game/item_drops.hpp"
 #include <iostream>
 #include <cmath>
 #include <algorithm>
@@ -280,8 +282,18 @@ static void resolve_world_collision(Registry& reg, Entity player, World& world, 
                     else pos->x = bwx+BLOCK_SIZE;
                     vel->x = 0;
                 } else {
-                    if (py+ph/2 < bwy+BLOCK_SIZE/2) { pos->y=bwy-ph; vel->y=0; }
-                    else { pos->y=bwy-ph; vel->y=0; ctrl.grounded=true; }
+                    // Vertical collision
+                    if (py+ph/2 < bwy+BLOCK_SIZE/2) {
+                        // Player center ABOVE block center → landing on top of block
+                        pos->y = bwy - ph;  // push player up to sit on top
+                        vel->y = 0;
+                        ctrl.grounded = true;  // landed!
+                    } else {
+                        // Player center BELOW block center → hit head on bottom of block
+                        pos->y = bwy + BLOCK_SIZE;  // push player down below block
+                        vel->y = 0;
+                        // grounded stays false (was reset to false at top of function)
+                    }
                 }
                 px=pos->x; py=pos->y;
             }
@@ -310,7 +322,16 @@ static void resolve_mob_collision(Registry& reg, Entity mob, World& world) {
                     else pos->x = bwx+BLOCK_SIZE;
                     vel->x = 0;
                 } else {
-                    pos->y=bwy-ph; vel->y=0;
+                    // Vertical collision - proper top/bottom resolution
+                    if (py+ph/2 < bwy+BLOCK_SIZE/2) {
+                        // Mob center above block center → landing on top
+                        pos->y = bwy - ph;
+                        vel->y = 0;
+                    } else {
+                        // Mob center below block center → hit head on bottom
+                        pos->y = bwy + BLOCK_SIZE;
+                        vel->y = 0;
+                    }
                 }
                 px=pos->x; py=pos->y;
             }
@@ -357,6 +378,9 @@ struct GameState {
     BlockType* selected = nullptr;
     float* spawn_x = nullptr;
     float* spawn_y = nullptr;
+    PlantSystem* plants = nullptr;
+    WildlifeSystem* wildlife = nullptr;
+    PlayerInventory* player_inv = nullptr;
 };
 
 // ---- Forward declarations for menu builders ----
@@ -549,24 +573,49 @@ static void build_inventory_menu(UIManager& ui, GameState& gs) {
     ui.add_panel(WINDOW_W/2 - 350, 80, 700, 560, 0.08f, 0.1f, 0.14f, 0.95f);
     ui.add_label(WINDOW_W/2 - 80, 100, "INVENTORY", 1.0f, 1.0f, 1.0f, 1.0f);
 
-    // Grid 8x6 = 48 slots
+    // Grid 8x6 = 48 slots — show player's actual inventory
     int grid_x = WINDOW_W/2 - 300;
     int grid_y = 150;
     int slot_size = 60;
     int slot_spacing = 8;
 
-    for (int row = 0; row < 6; row++) {
+    // First show hotbar (8 slots, first row)
+    for (int col = 0; col < 8; col++) {
+        int sx = grid_x + col * (slot_size + slot_spacing);
+        int sy = grid_y;
+        uint16_t item_id = gs.player_inv->hotbar[col];
+        int count = gs.player_inv->hotbar_count[col];
+        ui.add_inventory_slot(sx, sy, slot_size, item_id, count);
+        // Slot number
+        std::string num = std::to_string(col + 1);
+        ui.add_label(sx + 4, sy + 4, num, 1.0f, 1.0f, 0.4f, 0.8f);
+        // Item name below slot
+        if (item_id != 0) {
+            const char* name = item_name(item_id);
+            // Truncate to 10 chars
+            std::string short_name(name, std::min((size_t)10, strlen(name)));
+            ui.add_label(sx, sy + slot_size + 2, short_name, 0.7f, 0.8f, 0.9f, 1.0f);
+        }
+    }
+    // HOTBAR label
+    ui.add_label(grid_x, grid_y - 20, "HOTBAR", 1.0f, 0.9f, 0.3f, 1.0f);
+
+    // Then main inventory (5 rows x 8 cols)
+    int inv_start_y = grid_y + slot_size + 30;
+    ui.add_label(grid_x, inv_start_y - 20, "INVENTORY", 1.0f, 0.9f, 0.3f, 1.0f);
+    int inv_idx = 0;
+    for (int row = 0; row < 5; row++) {
         for (int col = 0; col < 8; col++) {
             int sx = grid_x + col * (slot_size + slot_spacing);
-            int sy = grid_y + row * (slot_size + slot_spacing);
-            // Dummy items for visual variety
+            int sy = inv_start_y + row * (slot_size + slot_spacing);
             uint16_t item_id = 0;
             int count = 0;
-            if (row < 3 && col < 4) {
-                item_id = 0x0100 + (row * 8 + col);
-                count = (row + 1) * 5;
+            if (inv_idx < (int)gs.player_inv->inv.items.size()) {
+                item_id = (uint16_t)gs.player_inv->inv.items[inv_idx].id;
+                count = gs.player_inv->inv.items[inv_idx].count;
             }
             ui.add_inventory_slot(sx, sy, slot_size, item_id, count);
+            inv_idx++;
         }
     }
 
@@ -621,15 +670,32 @@ static void build_crafting_menu(UIManager& ui, GameState& gs) {
     for (int i = start; i < (int)recipes.size() && i < start + max_display; i++) {
         auto& r = recipes[i];
         int y = list_y + (i - start) * 26;
-        // Recipe button
-        ui.add_button(list_x, y, 760, 22, "", [&]() { gs.audio->play_click(); },
-                     r.discovered ? 0.15f : 0.08f, r.discovered ? 0.18f : 0.1f, 0.2f);
+        // Check if player can craft this
+        bool can_craft = CraftingSystem::can_craft(r, gs.player_inv->inv, CraftingStation::NONE);
+        // Recipe button - clicking crafts it
+        ui.add_button(list_x, y, 760, 22, "", [&, i, can_craft]() {
+            if (can_craft) {
+                auto& recipe = recipes[i];
+                if (CraftingSystem::craft(recipe, gs.player_inv->inv, CraftingStation::NONE)) {
+                    gs.audio->play_pickup();
+                    // Refresh menu to update availability
+                    build_crafting_menu(ui, gs);
+                } else {
+                    gs.audio->play_hurt();
+                }
+            } else {
+                gs.audio->play_hurt();
+            }
+        },
+                     can_craft ? 0.15f : 0.08f,
+                     can_craft ? 0.18f : 0.1f,
+                     can_craft ? 0.2f : 0.12f);
         // Tier color
         float tr = 0.5f + r.tier * 0.08f;
         ui.add_panel(list_x, y, 4, 22, tr, 0.5f, 0.2f, 1.0f);
         // Recipe name + count
         std::string label = r.discovered ? r.result_name + " x" + std::to_string(r.result_count) : "??? UNKNOWN ???";
-        ui.add_label(list_x + 10, y + 4, label, r.discovered ? 0.9f : 0.4f, 0.9f, 0.7f, 1.0f);
+        ui.add_label(list_x + 10, y + 4, label, r.discovered ? (can_craft ? 0.9f : 0.5f) : 0.4f, 0.9f, 0.7f, 1.0f);
         // Category
         ui.add_label(list_x + 400, y + 4, "[" + r.category + "]", 0.6f, 0.6f, 0.7f, 1.0f);
         // Tier
@@ -808,9 +874,20 @@ int main() {
     WeatherSystem weather;
     LightingSystem lighting;
     UIManager ui;
+    PlantSystem plants;
+    WildlifeSystem wildlife;
+    PlayerInventory player_inv;
 
     lighting.add_light(LightSource::TORCH, spawn_x + 80, spawn_y - 20, 100);
     lighting.add_light(LightSource::TORCH, spawn_x - 80, spawn_y - 20, 100);
+
+    // Spawn plants and wildlife near spawn
+    Biome spawn_biome = world.get_biome((int)(spawn_x/16), 0);
+    for (int cx = -2; cx <= 2; cx++) {
+        plants.spawn_for_chunk(world, cx, spawn_biome.type, 42);
+    }
+    wildlife.spawn_for_biome(world, spawn_biome.type, spawn_x, spawn_y - 100, 42);
+    std::cout << "Initial plants: " << plants.plants.size() << ", wildlife: " << wildlife.animals.size() << std::endl;
 
     int mouse_x=0, mouse_y=0;
     bool mouse_left=false, mouse_right=false;
@@ -873,6 +950,9 @@ int main() {
     gs.selected = &selected;
     gs.spawn_x = &spawn_x;
     gs.spawn_y = &spawn_y;
+    gs.plants = &plants;
+    gs.wildlife = &wildlife;
+    gs.player_inv = &player_inv;
 
     // Build initial main menu
     build_main_menu(ui, gs);
@@ -1026,6 +1106,13 @@ int main() {
                         particles.emit_dust(tbx*BLOCK_SIZE, tby*BLOCK_SIZE, bc.r, bc.g, bc.b);
                         if (b->type == BlockType::METAL) particles.emit(tbx*BLOCK_SIZE+8, tby*BLOCK_SIZE+8, 3, 1.0f, 0.8f, 0.2f, 80, 200, 0.2f, 0.4f);
                         if (b->type == BlockType::CRYSTAL) particles.emit_spark(tbx*BLOCK_SIZE+8, tby*BLOCK_SIZE+8, 0.6f, 0.9f, 1.0f);
+                        // Spawn item drop
+                        auto [item_id, drop_count] = block_to_item_drop(b->type);
+                        if (item_id != 0) {
+                            ItemDropSystem::spawn_drop_scatter(reg,
+                                tbx*BLOCK_SIZE + 8, tby*BLOCK_SIZE + 8,
+                                item_id, drop_count);
+                        }
                         world.destroy_block(tbx, tby);
                         if (has_audio) audio.play_mine();
                     }
@@ -1051,6 +1138,32 @@ int main() {
                 CombatSystem::update_projectiles(reg, FIXED_DT);
                 CombatSystem::check_projectile_hits(reg);
                 projectile_world_collision(reg, world);
+
+                // Update item drops and collect
+                auto collected = ItemDropSystem::update(reg, player, FIXED_DT, world);
+                for (auto& [item_id, count] : collected) {
+                    player_inv.add_item(item_id, count);
+                    if (has_audio) audio.play_pickup();
+                    floating_texts.emit(pos->x, pos->y - 20, "+" + std::string(item_name(item_id)), 0.5f, 1.0f, 0.5f);
+                }
+
+                // Update plants and wildlife
+                plants.update(FIXED_DT);
+                wildlife.update(FIXED_DT, time_of_day, pos->x, pos->y);
+
+                // Periodically spawn new plants/wildlife based on player position
+                static float nature_spawn_timer = 10.0f;
+                nature_spawn_timer -= FIXED_DT;
+                if (nature_spawn_timer <= 0) {
+                    nature_spawn_timer = 15.0f;
+                    Biome cur_b = world.get_biome((int)(pos->x/16), 0);
+                    int player_chunk = (int)(pos->x / 16 / 64);
+                    plants.spawn_for_chunk(world, player_chunk, cur_b.type, 42);
+                    plants.cull_far(pos->x, 1500);
+                    if ((int)wildlife.animals.size() < 15) {
+                        wildlife.spawn_for_biome(world, cur_b.type, pos->x, pos->y - 100, 42);
+                    }
+                }
 
                 // Count mobs before AI update
                 int mobs_before = 0;
@@ -1199,11 +1312,112 @@ int main() {
                     c.r = std::min(1.5f, c.r * light.r);
                     c.g = std::min(1.5f, c.g * light.g);
                     c.b = std::min(1.5f, c.b * light.b);
+
+                    // Voxel depth shading: blocks exposed to air above are brighter
+                    Block* above = world.get_block(bx, by - 1);
+                    if (above && above->is_air()) {
+                        // Top of pillar - brighter
+                        c.r = std::min(1.5f, c.r * 1.15f);
+                        c.g = std::min(1.5f, c.g * 1.15f);
+                        c.b = std::min(1.5f, c.b * 1.15f);
+                    } else if (!above || !above->is_solid()) {
+                        // Edge of world or liquid above
+                    } else {
+                        // Underground - darker
+                        c.r *= 0.85f;
+                        c.g *= 0.85f;
+                        c.b *= 0.85f;
+                    }
+                    // Side shading
+                    Block* left = world.get_block(bx - 1, by);
+                    Block* right = world.get_block(bx + 1, by);
+                    if ((!left || left->is_air()) && (!right || !right->is_air())) {
+                        // Both sides exposed
+                    } else if (!left || left->is_air()) {
+                        c.r *= 0.9f; c.g *= 0.9f; c.b *= 0.9f;
+                    } else if (!right || right->is_air()) {
+                        c.r *= 0.95f; c.g *= 0.95f; c.b *= 0.95f;
+                    }
+
                     renderer.draw_rect(bx*BLOCK_SIZE, by*BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE, c.r, c.g, c.b);
+
+                    // Top edge highlight (only if block above is air)
+                    if (above && above->is_air()) {
+                        renderer.draw_rect(bx*BLOCK_SIZE, by*BLOCK_SIZE, BLOCK_SIZE, 2,
+                                          std::min(1.5f, c.r * 1.2f),
+                                          std::min(1.5f, c.g * 1.2f),
+                                          std::min(1.5f, c.b * 1.2f), 0.7f);
+                    }
                 }
             }
 
             lighting.render_lights(renderer);
+
+            // Render plants
+            for (auto& p : plants.plants) {
+                if (p.x < camera.left() - 50 || p.x > camera.right() + 50) continue;
+                if (p.y < camera.top() - 50 || p.y > camera.bottom() + 50) continue;
+                float r, g, b;
+                PlantSystem::get_color(p.type, r, g, b);
+                float w, h;
+                PlantSystem::get_size(p.type, w, h);
+                // Apply growth
+                w *= p.growth;
+                h *= p.growth;
+                // Apply lighting
+                auto light = lighting.get_light_at(p.x, p.y);
+                r = std::min(1.5f, r * light.r);
+                g = std::min(1.5f, g * light.g);
+                b = std::min(1.5f, b * light.b);
+                renderer.draw_rect(p.x - w/2, p.y - h + 16, w, h, r, g, b);
+                // Harvestable indicator
+                if (p.harvestable && p.harvest_timer <= 0 && p.growth >= 0.5f) {
+                    renderer.draw_rect(p.x - 2, p.y - h + 12, 4, 4, 0.3f, 1.0f, 0.3f, 0.6f + 0.4f * sin(frame_count * 0.1f));
+                }
+                // Glowing plants add light
+                if (PlantSystem::is_glowing(p.type)) {
+                    lighting.add_light(p.type == PlantType::MUSHROOM_GLOW ? LightSource::CRYSTAL_GLOW : LightSource::CRYSTAL_GLOW,
+                                      p.x, p.y, 40, 0.4f);
+                }
+            }
+
+            // Render wildlife
+            for (auto& w : wildlife.animals) {
+                if (!w.active) continue;
+                if (w.x < camera.left() - 50 || w.x > camera.right() + 50) continue;
+                if (w.y < camera.top() - 50 || w.y > camera.bottom() + 50) continue;
+                float r, g, b;
+                WildlifeSystem::get_color(w.type, r, g, b);
+                float ww, hh;
+                WildlifeSystem::get_size(w.type, ww, hh);
+                auto light = lighting.get_light_at(w.x, w.y);
+                r = std::min(1.5f, r * light.r);
+                g = std::min(1.5f, g * light.g);
+                b = std::min(1.5f, b * light.b);
+                renderer.draw_rect(w.x - ww/2, w.y - hh/2, ww, hh, r, g, b);
+                // Firefly glow
+                if (WildlifeSystem::is_glowing(w.type)) {
+                    float glow = 0.5f + 0.5f * sin(w.glow_phase);
+                    renderer.draw_rect(w.x - 6, w.y - 6, 12, 12, 1.0f, 0.9f, 0.3f, glow * 0.4f);
+                    lighting.add_light(LightSource::STAR, w.x, w.y, 30, glow * 0.5f);
+                }
+            }
+
+            // Render item drops
+            reg.each<Position, ItemDrop>([&](auto ent, Position& p, ItemDrop& drop) {
+                if (p.x < camera.left() - 50 || p.x > camera.right() + 50) return;
+                float r, g, b;
+                item_color(drop.item_id, r, g, b);
+                auto light = lighting.get_light_at(p.x, p.y);
+                r = std::min(1.5f, r * light.r);
+                g = std::min(1.5f, g * light.g);
+                b = std::min(1.5f, b * light.b);
+                // Floating animation
+                float bob = sin(drop.bob_phase) * 2;
+                renderer.draw_rect(p.x - 5, p.y - 5 + bob, 10, 10, r, g, b);
+                // Glow
+                renderer.draw_rect(p.x - 8, p.y - 8 + bob, 16, 16, r, g, b, 0.2f);
+            });
 
             // Render mobs
             reg.each<Position, AABBCollider, MobAI, Health>([&](auto ent, Position& p, AABBCollider& c, MobAI& ai, Health& hp) {
