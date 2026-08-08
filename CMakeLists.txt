@@ -109,3 +109,7 @@ add_test(NAME crafting_v2_test COMMAND test_crafting_v2)
 add_executable(test_save_system tests/test_save_system.cpp)
 target_link_libraries(test_save_system ${SQLite3_LIBRARIES})
 add_test(NAME save_system_test COMMAND test_save_system)
+
+add_executable(test_ui_system tests/test_ui_system.cpp)
+target_link_libraries(test_ui_system ${SDL2_LIBS})
+add_test(NAME ui_system_test COMMAND test_ui_system)

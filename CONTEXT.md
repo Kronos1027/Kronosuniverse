@@ -235,10 +235,26 @@
   - Persistência entre sessões
 - **Testes**: 6 (open/close, save/load player, stats, block deltas, recipe discovery, persistence across reopen)
 
-## 4b. RESUMO v0.3
-- **17 conjuntos de testes, 142 testes individuais (vs 83 em v0.1 = +71%)**
-- **Sistemas novos**: Combat, MobAI, Weather, Lighting, Crafting v2, Save
-- **Arquivos novos**: 5 headers + 5 testes + main.cpp expandido 3x
+### Fase 17 — UI System (v0.4)
+- **Status**: COMPLETA ✅
+- **Data**: 2026-08-08
+- **Implementado**:
+  - Bitmap font 5x7 (67 chars: A-Z, 0-9, pontuação) sem textura
+  - UIManager com 8 tipos de elemento: BUTTON, PANEL, LABEL, IMAGE, SLIDER, TEXT_INPUT, PROGRESS_BAR, INVENTORY_SLOT, HOTBAR_SLOT
+  - Detecção de hover e click com callbacks
+  - Estados visuais: hover, pressed, disabled, invisible
+  - 9 telas: MAIN_MENU, SETTINGS, PLAYING, PAUSED, INVENTORY, CRAFTING, STATS, DEATH, NEW_GAME
+  - Mouse cursor customizado (crosshair)
+  - Click sounds + hover feedback
+  - Starfield animado no main menu
+  - Navigation: ESC abre pause, I abre inventory, C abre crafting, TAB abre stats
+- **Testes**: 21 (font width/height, char index letters/digits/punctuation/unknown, add button/panel/label/progress/slot, contains, clear, hover detection, click callback, no click outside, invisible skip, disabled no hover, state management, unique IDs)
+
+## 4b. RESUMO v0.4
+- **18 conjuntos de testes, 163 testes individuais (vs 83 em v0.1 = +96%)**
+- **Sistemas novos v0.4**: UI System completo (menus, font, buttons)
+- **Bug crítico corrigido**: reg.view<MobAI>()->size() crashava no Windows → substituído por reg.each<MobAI>(contador)
+- **Binário Windows**: 1.5MB stripped + DLLs (4MB total)
 
 ## 5. ERROS ENCONTRADOS E COMO FORAM RESOLVIDOS
 
